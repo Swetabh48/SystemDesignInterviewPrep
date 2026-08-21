@@ -1,0 +1,16 @@
+node_modules
+dist
+.DS_Store
+*.local
+.vite
+.env
+.env.*
+.cursor
+.cursor/
+**/.cursor/**
+.vscode
+*.log
+Thumbs.db
+
+# Do not publish copyrighted books
+*.pdf
