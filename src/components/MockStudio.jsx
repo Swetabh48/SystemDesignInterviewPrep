@@ -20,6 +20,7 @@ function SectionHeader({ eyebrow, title, sub }) {
 }
 
 function ScoreBar({ label, value }) {
+  const clamped = Math.max(0, Math.min(100, value ?? 0));
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "var(--font-mono)", marginBottom: 3 }}>
@@ -29,9 +30,9 @@ function ScoreBar({ label, value }) {
       <div style={{ height: 5, background: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
         <div
           style={{
-            width: `${value}%`,
+            width: `${clamped}%`,
             height: "100%",
-            background: value >= 70 ? "var(--bid)" : value >= 50 ? "var(--amber)" : "var(--ask)",
+            background: clamped >= 70 ? "var(--bid)" : clamped >= 50 ? "var(--amber)" : "var(--ask)",
             transition: "width 0.4s ease",
           }}
         />
@@ -75,6 +76,26 @@ export default function MockStudio({
       elapsedSec: meta.elapsedSec,
       rubricChecks,
     });
+
+    if (meta.integrityFail) {
+      const penalty = meta.integrityPenalty ?? 100;
+      const raw = result.overall;
+      const overall = raw - penalty;
+      result.rawOverall = raw;
+      result.overall = overall;
+      result.integrityFail = true;
+      result.integrityPenalty = penalty;
+      result.gazeWarnings = meta.gazeWarnings ?? 3;
+      result.band = {
+        label: "Integrity fail",
+        color: "var(--ask)",
+      };
+      result.improvements = [
+        `Gaze integrity: ${meta.gazeWarnings ?? 3} look-away warnings ended the session (−${penalty}).`,
+        ...(result.improvements || []).slice(0, 4),
+      ];
+    }
+
     setAnalysis(result);
     setEnded(true);
   }
@@ -170,8 +191,28 @@ export default function MockStudio({
         <SectionHeader
           eyebrow="03 / SESSION SCORECARD"
           title={problem.title}
-          sub={`Graded from what you said (${analysis.stats.wordCount} words), drew, and wrote — not random. Silence scores near zero.`}
+          sub={
+            analysis.integrityFail
+              ? `Session ended early after ${analysis.gazeWarnings} gaze warnings. Raw score ${analysis.rawOverall} − ${analysis.integrityPenalty} integrity penalty.`
+              : `Graded from what you said (${analysis.stats.wordCount} words), drew, and wrote — not random. Silence scores near zero.`
+          }
         />
+        {analysis.integrityFail && (
+          <div
+            style={{
+              background: "rgba(226,102,74,0.15)",
+              border: "1px solid var(--ask)",
+              borderRadius: 8,
+              padding: "12px 14px",
+              marginBottom: 16,
+              fontSize: 13,
+              color: "var(--ask)",
+              lineHeight: 1.45,
+            }}
+          >
+            Integrity penalty applied: looking away from the screen/camera three times ended the mock (−{analysis.integrityPenalty} points).
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "minmax(160px, 200px) 1fr", gap: 20, marginBottom: 22 }}>
           <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 10, padding: 18, textAlign: "center" }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>OVERALL</div>
@@ -179,6 +220,11 @@ export default function MockStudio({
               {analysis.overall}
             </div>
             <div style={{ fontSize: 12, color: analysis.band.color, marginTop: 6 }}>{analysis.band.label}</div>
+            {analysis.integrityFail && (
+              <div style={{ fontSize: 11, color: "var(--ask)", marginTop: 8, fontFamily: "var(--font-mono)" }}>
+                {analysis.rawOverall} − {analysis.integrityPenalty}
+              </div>
+            )}
             <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 10, fontFamily: "var(--font-mono)" }}>
               {analysis.stats.wordCount} words · {Math.floor(analysis.stats.elapsedSec / 60)}m
             </div>
@@ -305,6 +351,8 @@ export default function MockStudio({
       <ul style={{ margin: "0 0 20px", paddingLeft: 18, color: "var(--text-dim)", fontSize: 13, lineHeight: 1.6 }}>
         <li>Camera + mic + transcript start automatically when you enter.</li>
         <li>Allow camera if the browser asks. Your face floats bottom-right (drag/resize).</li>
+        <li>Full problem statement is written on the whiteboard and pinned at the top.</li>
+        <li>Gaze monitor: 3 look-away warnings ends the session with −100 points.</li>
         <li>Score is based on transcript + whiteboard + notes — silence = near zero.</li>
       </ul>
       <button

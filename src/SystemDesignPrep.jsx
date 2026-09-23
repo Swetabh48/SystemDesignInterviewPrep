@@ -1,9 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Play, Terminal } from "lucide-react";
+import {
+  BookOpen,
+  Brain,
+  ChevronLeft,
+  ChevronRight,
+  Code2,
+  Layers,
+  LineChart,
+  Play,
+  Terminal,
+} from "lucide-react";
 import { FRAMEWORK_STEPS, CONCEPTS } from "./data/framework.js";
 import { PROBLEMS, CATEGORIES } from "./data/problems.js";
+import { LLD_PROBLEMS, LLD_CATEGORIES } from "./data/lldProblems.js";
+import { LLD_FRAMEWORK_STEPS, LLD_CONCEPTS } from "./data/lldFramework.js";
 import { getSolutions } from "./data/solutions.js";
 import MockStudio from "./components/MockStudio.jsx";
+import LldMockStudio from "./components/LldMockStudio.jsx";
 import SolutionsList from "./components/SolutionsList.jsx";
 
 const STATUS = {
@@ -13,14 +26,18 @@ const STATUS = {
   confident: { label: "Confident", color: "var(--bid)", fill: 100 },
 };
 
-const STORAGE_KEY = "sdprep-state-v2";
+const STORAGE_KEY = "sdprep-state-v3";
 
 function defaultState() {
   const problems = {};
   PROBLEMS.forEach((p) => {
     problems[p.id] = { status: "not-started", notes: "", rubric: p.rubric.map(() => false), lastScore: null };
   });
-  return { problems, mockCount: 0 };
+  const lldProblems = {};
+  LLD_PROBLEMS.forEach((p) => {
+    lldProblems[p.id] = { status: "not-started", notes: "", rubric: p.rubric.map(() => false), lastScore: null };
+  });
+  return { problems, lldProblems, mockCount: 0, lldMockCount: 0 };
 }
 
 function migrateState(parsed) {
@@ -38,7 +55,22 @@ function migrateState(parsed) {
       };
     }
   }
+  if (parsed.lldProblems) {
+    for (const p of LLD_PROBLEMS) {
+      if (parsed.lldProblems[p.id]) {
+        base.lldProblems[p.id] = {
+          status: parsed.lldProblems[p.id].status || "not-started",
+          notes: parsed.lldProblems[p.id].notes || "",
+          rubric: Array.isArray(parsed.lldProblems[p.id].rubric)
+            ? p.rubric.map((_, i) => !!parsed.lldProblems[p.id].rubric[i])
+            : p.rubric.map(() => false),
+          lastScore: parsed.lldProblems[p.id].lastScore ?? null,
+        };
+      }
+    }
+  }
   base.mockCount = parsed.mockCount || 0;
+  base.lldMockCount = parsed.lldMockCount || 0;
   return base;
 }
 
@@ -60,34 +92,21 @@ function FrameworkView() {
   return (
     <div>
       <SectionHeader
-        eyebrow="00 / THE FRAMEWORK"
+        eyebrow="00 / HLD FRAMEWORK"
         title="Run every problem through this"
         sub="Eight phases, sixty minutes. This is the structure an interviewer is silently checking you against."
       />
       <div>
         {FRAMEWORK_STEPS.map((s, i) => (
-          <div key={s.num} style={{ display: "flex", gap: 16, paddingBottom: i < FRAMEWORK_STEPS.length - 1 ? 18 : 0 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-              <div
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: "50%",
-                  background: "var(--panel)",
-                  border: "1px solid var(--border)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  color: "var(--amber)",
-                }}
-              >
-                {s.num}
-              </div>
-              {i < FRAMEWORK_STEPS.length - 1 && <div style={{ width: 1, flex: 1, background: "var(--border)", marginTop: 4 }} />}
+          <div
+            key={s.num}
+            className="framework-step"
+          >
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div className="framework-step-num">{s.num}</div>
+              {i < FRAMEWORK_STEPS.length - 1 && <div className="framework-step-line" />}
             </div>
-            <div style={{ paddingBottom: 4, flex: 1 }}>
+            <div style={{ flex: 1, paddingBottom: 4 }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
                 <h3 style={{ fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 600, margin: 0 }}>{s.title}</h3>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
@@ -110,17 +129,68 @@ function ConceptsView() {
       <SectionHeader
         eyebrow="01 / CONCEPTS"
         title="Cheat sheet"
-        sub="Cold knowledge before you walk in — caching, replication, messaging, reliability, and AI infra patterns. Skim before every mock."
+        sub="Cold knowledge before you walk in — caching, replication, messaging, reliability, and AI infra patterns."
       />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 14 }}>
-        {CONCEPTS.map((c) => (
-          <div key={c.title} style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 16px" }}>
-            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 600, margin: "0 0 8px 0" }}>{c.title}</h3>
-            <ul style={{ margin: 0, paddingLeft: 16, display: "flex", flexDirection: "column", gap: 6 }}>
-              {c.points.map((pt, i) => (
-                <li key={i} style={{ fontSize: 12.5, color: "var(--text-dim)", lineHeight: 1.5 }}>
-                  {pt}
-                </li>
+      <div className="concept-grid">
+        {CONCEPTS.map((c, i) => (
+          <div
+            key={c.title}
+            className="concept-card glass-card"
+          >
+            <h3>{c.title}</h3>
+            <ul>
+              {c.points.map((pt, j) => (
+                <li key={j}>{pt}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LldGuideView() {
+  return (
+    <div>
+      <SectionHeader
+        eyebrow="04 / LLD FRAMEWORK"
+        title="Code-first low-level design"
+        sub="Six phases, sixty minutes. Clarify, model entities, implement APIs, apply patterns, discuss concurrency, wrap with tests."
+      />
+      <div>
+        {LLD_FRAMEWORK_STEPS.map((s, i) => (
+          <div
+            key={s.num}
+            className="framework-step"
+          >
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div className="framework-step-num">{s.num}</div>
+              {i < LLD_FRAMEWORK_STEPS.length - 1 && <div className="framework-step-line" />}
+            </div>
+            <div style={{ flex: 1, paddingBottom: 4 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <h3 style={{ fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 600, margin: 0 }}>{s.title}</h3>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
+                  {s.minutes} min · ends at {s.cumulative}:00
+                </span>
+              </div>
+              <p style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 6, lineHeight: 1.6, maxWidth: 620 }}>{s.detail}</p>
+              <div style={{ marginTop: 6, fontSize: 12, color: "var(--cyan)" }}>→ {s.tip}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="concept-grid" style={{ marginTop: 24 }}>
+        {LLD_CONCEPTS.map((c, i) => (
+          <div
+            key={c.title}
+            className="concept-card glass-card"
+          >
+            <h3>{c.title}</h3>
+            <ul>
+              {c.points.map((pt, j) => (
+                <li key={j}>{pt}</li>
               ))}
             </ul>
           </div>
@@ -145,33 +215,20 @@ function Block({ title, items }) {
   );
 }
 
-function ProblemFilters({ query, setQuery, tag, setTag, category, setCategory, count }) {
-  const selectStyle = {
-    background: "var(--panel)",
-    border: "1px solid var(--border)",
-    borderRadius: 6,
-    color: "var(--text)",
-    padding: "7px 10px",
-    fontSize: 12,
-  };
+function ProblemFilters({ query, setQuery, tag, setTag, category, setCategory, count, categories = CATEGORIES }) {
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14, alignItems: "center" }}>
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search problems…"
-        style={{ ...selectStyle, minWidth: 180, flex: "1 1 160px" }}
-      />
-      <select value={tag} onChange={(e) => setTag(e.target.value)} style={selectStyle}>
+    <div className="filter-bar">
+      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search problems…" style={{ minWidth: 180, flex: "1 1 160px" }} />
+      <select value={tag} onChange={(e) => setTag(e.target.value)}>
         <option value="">All levels</option>
         <option value="Warm-up">Warm-up</option>
         <option value="Core">Core</option>
         <option value="Advanced">Advanced</option>
         <option value="Expert">Expert</option>
       </select>
-      <select value={category} onChange={(e) => setCategory(e.target.value)} style={selectStyle}>
+      <select value={category} onChange={(e) => setCategory(e.target.value)}>
         <option value="">All categories</option>
-        {CATEGORIES.map((c) => (
+        {categories.map((c) => (
           <option key={c} value={c}>
             {c}
           </option>
@@ -182,49 +239,41 @@ function ProblemFilters({ query, setQuery, tag, setTag, category, setCategory, c
   );
 }
 
-function ProblemListView({ data, onOpen, filtered }) {
+function ProblemListView({ problemsState, onOpen, filtered }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {filtered.map((p) => {
-        const st = data.problems[p.id];
+      {filtered.map((p, i) => {
+        const st = problemsState[p.id];
         const meta = STATUS[st.status];
         return (
           <div
             key={p.id}
-            className="depth-row nav-btn"
+            className="depth-row"
             onClick={() => onOpen(p.id)}
-            style={{
-              cursor: "pointer",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              padding: "12px 16px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-            }}
           >
             <div className="depth-fill" style={{ width: meta.fill + "%" }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 14, position: "relative", zIndex: 1, minWidth: 0 }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>{p.num}</span>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 500 }}>{p.title}</div>
-                <div style={{ fontSize: 11, color: "var(--text-dim)", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <span>{p.tag}</span>
-                  <span>·</span>
-                  <span>{p.category}</span>
-                  {st.lastScore != null && (
-                    <>
-                      <span>·</span>
-                      <span style={{ color: "var(--amber)" }}>score {st.lastScore}</span>
-                    </>
-                  )}
+            <div className="problem-row-inner">
+              <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>{p.num}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>{p.title}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-dim)", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <span>{p.tag}</span>
+                    <span>·</span>
+                    <span>{p.category}</span>
+                    {st.lastScore != null && (
+                      <>
+                        <span>·</span>
+                        <span style={{ color: "var(--amber)" }}>score {st.lastScore}</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative", zIndex: 1, flexShrink: 0 }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: meta.color }}>{meta.label}</span>
-              <ChevronRight size={14} color="var(--text-dim)" />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: meta.color }}>{meta.label}</span>
+                <ChevronRight size={14} color="var(--text-dim)" />
+              </div>
             </div>
           </div>
         );
@@ -232,6 +281,85 @@ function ProblemListView({ data, onOpen, filtered }) {
       {!filtered.length && (
         <div style={{ color: "var(--text-dim)", fontSize: 13, padding: 20, textAlign: "center" }}>No problems match these filters.</div>
       )}
+    </div>
+  );
+}
+
+function LldProblemDetailView({ problem, state, onBack, onStatus, onNotes, onStartMock }) {
+  const [notes, setNotesLocal] = useState(state.notes);
+  return (
+    <div>
+      <button type="button" onClick={onBack} className="back-link" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
+        <ChevronLeft size={14} /> Back to LLD questions
+      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--cyan)" }}>{problem.num}</span>
+        <h1 className="section-title" style={{ fontSize: 22, margin: 0 }}>{problem.title}</h1>
+        <span className="tag">{problem.tag}</span>
+        <span className="tag">{problem.category}</span>
+      </div>
+      <p className="section-sub">{problem.prompt}</p>
+      <p style={{ fontSize: 11, color: "var(--text-dim)", marginTop: -4 }}>Inspired by: {problem.source}</p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px,1fr))", gap: 14, marginTop: 20 }}>
+        <Block title="Clarify before you code" items={problem.requirements} />
+        <Block title="Where you'll be probed" items={problem.focus} />
+      </div>
+
+      <div style={{ marginTop: 22 }}>
+        <h3 style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Self-check rubric</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {problem.rubric.map((r, i) => (
+            <label key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-dim)" }}>
+              <input type="checkbox" checked={!!state.rubric[i]} readOnly disabled style={{ accentColor: "var(--bid)" }} />
+              {r}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <h3 style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Notes</h3>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotesLocal(e.target.value)}
+          onBlur={() => onNotes(notes)}
+          placeholder="Patterns to use, edge cases, test ideas…"
+          style={{
+            width: "100%",
+            minHeight: 80,
+            background: "var(--panel-solid)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            color: "var(--text)",
+            padding: "10px 12px",
+            fontSize: 13,
+            resize: "vertical",
+          }}
+        />
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap", alignItems: "center" }}>
+        <button type="button" className="btn-accent-lg" onClick={onStartMock}>
+          <Code2 size={14} /> Start LLD code room
+        </button>
+        <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Status:</span>
+        {Object.keys(STATUS).map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onStatus(key)}
+            className="tag"
+            style={{
+              cursor: "pointer",
+              color: state.status === key ? STATUS[key].color : "var(--text-dim)",
+              background: state.status === key ? "var(--panel-alt)" : "transparent",
+            }}
+          >
+            {STATUS[key].label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -363,70 +491,53 @@ function ProblemDetailView({ problem, state, onBack, onStatus, onNotes, onStartM
   );
 }
 
-function ProgressView({ data, onOpen }) {
-  const total = PROBLEMS.length;
-  const doneCount = Object.values(data.problems).filter((p) => p.status === "confident").length;
-  const scored = PROBLEMS.filter((p) => data.problems[p.id]?.lastScore != null);
-  const avg =
-    scored.length > 0
-      ? Math.round(scored.reduce((a, p) => a + data.problems[p.id].lastScore, 0) / scored.length)
-      : null;
+function ProgressView({ data, onOpenHld, onOpenLld }) {
+  const hldTotal = PROBLEMS.length;
+  const lldTotal = LLD_PROBLEMS.length;
+  const hldDone = Object.values(data.problems).filter((p) => p.status === "confident").length;
+  const lldDone = Object.values(data.lldProblems).filter((p) => p.status === "confident").length;
+
+  function renderRows(problems, stateMap, onOpen, accent) {
+    return problems.map((p) => {
+      const st = stateMap[p.id];
+      const meta = STATUS[st.status];
+      const checkedCount = st.rubric.filter(Boolean).length;
+      return (
+        <div key={p.id} onClick={() => onOpen(p.id)} className="depth-row" style={{ cursor: "pointer", marginBottom: 8 }}>
+          <div className="depth-fill" style={{ width: meta.fill + "%" }} />
+          <div className="problem-row-inner">
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: accent }}>{p.num}</span>
+              <span style={{ fontSize: 13.5 }}>{p.title}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {st.lastScore != null && (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--amber)" }}>{st.lastScore}</span>
+              )}
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
+                {checkedCount}/{p.rubric.length}
+              </span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: meta.color, minWidth: 80, textAlign: "right" }}>
+                {meta.label}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    });
+  }
 
   return (
     <div>
       <SectionHeader
-        eyebrow="04 / PROGRESS"
+        eyebrow="07 / PROGRESS"
         title="Where you stand"
-        sub={
-          doneCount +
-          " of " +
-          total +
-          " problems at confident. " +
-          data.mockCount +
-          " mock sessions logged." +
-          (avg != null ? ` Avg mock score ${avg}.` : "")
-        }
+        sub={`HLD: ${hldDone}/${hldTotal} confident · LLD: ${lldDone}/${lldTotal} confident · ${data.mockCount + data.lldMockCount} total mock sessions.`}
       />
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {PROBLEMS.map((p) => {
-          const st = data.problems[p.id];
-          const meta = STATUS[st.status];
-          const checkedCount = st.rubric.filter(Boolean).length;
-          return (
-            <div
-              key={p.id}
-              onClick={() => onOpen(p.id)}
-              className="depth-row nav-btn"
-              style={{
-                cursor: "pointer",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                padding: "12px 16px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div className="depth-fill" style={{ width: meta.fill + "%" }} />
-              <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>{p.num}</span>
-                <span style={{ fontSize: 13.5 }}>{p.title}</span>
-              </div>
-              <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12 }}>
-                {st.lastScore != null && (
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--amber)" }}>{st.lastScore}</span>
-                )}
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
-                  {checkedCount}/{p.rubric.length}
-                </span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: meta.color, minWidth: 80, textAlign: "right" }}>
-                  {meta.label}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <h3 style={{ fontFamily: "var(--font-display)", fontSize: 14, color: "var(--amber)", marginBottom: 10 }}>System design (HLD)</h3>
+      {renderRows(PROBLEMS, data.problems, onOpenHld, "var(--amber)")}
+      <h3 style={{ fontFamily: "var(--font-display)", fontSize: 14, color: "var(--cyan)", margin: "24px 0 10px" }}>Low-level design (LLD)</h3>
+      {renderRows(LLD_PROBLEMS, data.lldProblems, onOpenLld, "var(--cyan)")}
     </div>
   );
 }
@@ -439,10 +550,18 @@ export default function SystemDesignPrep() {
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState("");
   const [category, setCategory] = useState("");
+  const [lldActiveProblemId, setLldActiveProblemId] = useState(null);
+  const [lldMockProblemId, setLldMockProblemId] = useState(null);
+  const [lldQuery, setLldQuery] = useState("");
+  const [lldTag, setLldTag] = useState("");
+  const [lldCategory, setLldCategory] = useState("");
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("sdprep-state-v1");
+      const raw =
+        localStorage.getItem(STORAGE_KEY) ||
+        localStorage.getItem("sdprep-state-v2") ||
+        localStorage.getItem("sdprep-state-v1");
       setData(raw ? migrateState(JSON.parse(raw)) : defaultState());
     } catch {
       setData(defaultState());
@@ -473,6 +592,21 @@ export default function SystemDesignPrep() {
     });
   }, [query, tag, category]);
 
+  const lldFiltered = useMemo(() => {
+    const q = lldQuery.trim().toLowerCase();
+    return LLD_PROBLEMS.filter((p) => {
+      if (lldTag && p.tag !== lldTag) return false;
+      if (lldCategory && p.category !== lldCategory) return false;
+      if (!q) return true;
+      return (
+        p.title.toLowerCase().includes(q) ||
+        p.prompt.toLowerCase().includes(q) ||
+        p.id.includes(q) ||
+        p.category.includes(q)
+      );
+    });
+  }, [lldQuery, lldTag, lldCategory]);
+
   if (!data) {
     return (
       <div
@@ -495,12 +629,23 @@ export default function SystemDesignPrep() {
   const doneCount = Object.values(data.problems).filter((p) => p.status === "confident").length;
   const attemptedCount = Object.values(data.problems).filter((p) => p.status !== "not-started").length;
 
+  const lldDoneCount = Object.values(data.lldProblems).filter((p) => p.status === "confident").length;
+  const lldAttemptedCount = Object.values(data.lldProblems).filter((p) => p.status !== "not-started").length;
+
   function setProblemStatus(id, status) {
     persist({ ...data, problems: { ...data.problems, [id]: { ...data.problems[id], status } } });
   }
 
   function setProblemNotes(id, notes) {
     persist({ ...data, problems: { ...data.problems, [id]: { ...data.problems[id], notes } } });
+  }
+
+  function setLldProblemStatus(id, status) {
+    persist({ ...data, lldProblems: { ...data.lldProblems, [id]: { ...data.lldProblems[id], status } } });
+  }
+
+  function setLldProblemNotes(id, notes) {
+    persist({ ...data, lldProblems: { ...data.lldProblems, [id]: { ...data.lldProblems[id], notes } } });
   }
 
   function saveMockResult({ problemId, status, notes, rubric, score }) {
@@ -522,51 +667,48 @@ export default function SystemDesignPrep() {
     setMockProblemId(null);
   }
 
-  const navItems = [
-    { id: "framework", label: "Framework", num: "00" },
-    { id: "concepts", label: "Concepts", num: "01" },
-    { id: "problems", label: "Problem Set", num: "02" },
-    { id: "mock", label: "Mock Studio", num: "03" },
-    { id: "progress", label: "Progress", num: "04" },
+  function saveLldMockResult({ problemId, status, notes, rubric, score }) {
+    const next = {
+      ...data,
+      lldMockCount: data.lldMockCount + 1,
+      lldProblems: {
+        ...data.lldProblems,
+        [problemId]: { status, notes, rubric, lastScore: score },
+      },
+    };
+    persist(next);
+    setView("progress");
+    setLldMockProblemId(null);
+  }
+
+  const navSections = [
+    {
+      label: "System design",
+      items: [
+        { id: "framework", label: "HLD Framework", num: "00", icon: Layers },
+        { id: "concepts", label: "Concepts", num: "01", icon: Brain },
+        { id: "problems", label: "HLD Problems", num: "02", icon: BookOpen },
+        { id: "mock", label: "HLD Mock", num: "03", icon: Terminal },
+      ],
+    },
+    {
+      label: "Low-level design",
+      items: [
+        { id: "lld-guide", label: "LLD Framework", num: "04", icon: Code2 },
+        { id: "lld-problems", label: "LLD Questions", num: "05", icon: Terminal },
+        { id: "lld-mock", label: "LLD Code Room", num: "06", icon: Code2 },
+      ],
+    },
+    {
+      label: "Track",
+      items: [{ id: "progress", label: "Progress", num: "07", icon: LineChart }],
+    },
   ];
 
-  const cssVars = {
-    "--bg": "#0A0D10",
-    "--panel": "#12161B",
-    "--panel-alt": "#171C22",
-    "--border": "#232A32",
-    "--text": "#E7EAEE",
-    "--text-dim": "#8B96A3",
-    "--bid": "#3FB68B",
-    "--ask": "#E2664A",
-    "--amber": "#E8A33D",
-    "--font-display": "'Space Grotesk', sans-serif",
-    "--font-body": "'Inter', sans-serif",
-    "--font-mono": "'IBM Plex Mono', monospace",
-  };
-
-  const globalStyle = `
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-    * { box-sizing: border-box; }
-    .sdp-scroll::-webkit-scrollbar { width: 6px; }
-    .sdp-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    .depth-row { position: relative; overflow: hidden; }
-    .depth-fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, rgba(63,182,139,0.14), rgba(63,182,139,0.02)); transition: width 0.4s ease; }
-    .nav-btn { transition: background 0.15s ease, color 0.15s ease; }
-    .nav-btn:hover { background: var(--panel-alt); }
-    textarea:focus, button:focus-visible, input:focus, select:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
-    @media (max-width: 800px) {
-      .sdp-shell { flex-direction: column !important; }
-      .sdp-nav { width: 100% !important; border-right: none !important; border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; padding: 0 !important; }
-      .sdp-nav button { width: auto !important; white-space: nowrap; border-left: none !important; border-bottom: 2px solid transparent; }
-    }
-  `;
-
-  // Full-page mock experience (outside sidebar shell)
+  // Full-page mock experiences
   if (view === "mock") {
     return (
-      <div style={{ ...cssVars, background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", minHeight: "100vh" }}>
-        <style>{globalStyle}</style>
+      <div className="app-root">
         <MockStudio
           fullPage
           problems={PROBLEMS}
@@ -582,130 +724,184 @@ export default function SystemDesignPrep() {
     );
   }
 
-  return (
-    <div
-      style={{
-        ...cssVars,
-        background: "var(--bg)",
-        color: "var(--text)",
-        fontFamily: "var(--font-body)",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-      }}
-    >
-      <style>{globalStyle}</style>
-
-      <div
-        style={{
-          borderBottom: "1px solid var(--border)",
-          padding: "10px 20px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 8,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Terminal size={16} color="var(--amber)" />
-          <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 14, letterSpacing: "0.04em" }}>
-            SYSTEM DESIGN PREP
-          </span>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>{total} problems</span>
-        </div>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)", display: "flex", gap: 18 }}>
-          <span>
-            ATTEMPTED <span style={{ color: "var(--text)" }}>{attemptedCount}/{total}</span>
-          </span>
-          <span>
-            CONFIDENT <span style={{ color: "var(--bid)" }}>{doneCount}/{total}</span>
-          </span>
-          <span>
-            SESSIONS <span style={{ color: "var(--amber)" }}>{data.mockCount}</span>
-          </span>
-        </div>
+  if (view === "lld-mock") {
+    return (
+      <div className="app-root">
+        <LldMockStudio
+          fullPage
+          problems={LLD_PROBLEMS}
+          mockProblemId={lldMockProblemId}
+          onPickProblem={setLldMockProblemId}
+          onExit={() => {
+            setLldMockProblemId(null);
+            setView("lld-problems");
+          }}
+          onSaveResult={saveLldMockResult}
+        />
       </div>
+    );
+  }
 
-      <div className="sdp-shell" style={{ display: "flex", flex: 1, minHeight: 0 }}>
-        <div className="sdp-nav" style={{ width: 180, borderRight: "1px solid var(--border)", padding: "14px 0", flexShrink: 0 }}>
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="nav-btn"
-              onClick={() => {
-                setView(item.id);
-                setActiveProblemId(null);
-                if (item.id !== "mock") setMockProblemId(null);
-              }}
-              style={{
-                width: "100%",
-                textAlign: "left",
-                padding: "10px 18px",
-                background: view === item.id ? "var(--panel-alt)" : "transparent",
-                border: "none",
-                borderLeft: view === item.id ? "2px solid var(--amber)" : "2px solid transparent",
-                color: view === item.id ? "var(--text)" : "var(--text-dim)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                fontFamily: "var(--font-body)",
-                fontSize: 13,
-              }}
-            >
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--amber)" }}>{item.num}</span>
-              {item.label}
-            </button>
-          ))}
-        </div>
+  function handleNav(id) {
+    setView(id);
+    setActiveProblemId(null);
+    setLldActiveProblemId(null);
+    if (id !== "mock") setMockProblemId(null);
+    if (id !== "lld-mock") setLldMockProblemId(null);
+  }
 
-        <div className="sdp-scroll" style={{ flex: 1, padding: "24px 28px", overflowY: "auto" }}>
-          {view === "framework" && <FrameworkView />}
-          {view === "concepts" && <ConceptsView />}
-          {view === "problems" && !activeProblemId && (
-            <div>
-              <SectionHeader
-                eyebrow="02 / PROBLEM SET"
-                title={`${total} interview problems`}
-                sub="Classic product designs, infra primitives, marketplaces, media, payments, and AI systems reported across FAANG and startup interviews."
-              />
-              <ProblemFilters
-                query={query}
-                setQuery={setQuery}
-                tag={tag}
-                setTag={setTag}
-                category={category}
-                setCategory={setCategory}
-                count={filtered.length}
-              />
-              <ProblemListView data={data} onOpen={setActiveProblemId} filtered={filtered} />
+  return (
+    <div className="app-root">
+      <div className="app-bg">
+        <div className="app-bg-grid" />
+      </div>
+      <div className="app-shell">
+        <header className="app-topbar">
+          <div className="app-brand">
+            <div className="app-brand-icon">
+              <Terminal size={18} />
             </div>
-          )}
-          {view === "problems" && activeProblemId && (
-            <ProblemDetailView
-              problem={PROBLEMS.find((p) => p.id === activeProblemId)}
-              state={data.problems[activeProblemId]}
-              onBack={() => setActiveProblemId(null)}
-              onStatus={(s) => setProblemStatus(activeProblemId, s)}
-              onNotes={(n) => setProblemNotes(activeProblemId, n)}
-              onStartMock={() => {
-                setView("mock");
-                setMockProblemId(activeProblemId);
-              }}
-            />
-          )}
-          {view === "progress" && (
-            <ProgressView
-              data={data}
-              onOpen={(id) => {
-                setView("problems");
-                setActiveProblemId(id);
-              }}
-            />
-          )}
+            <div>
+              <div className="app-brand-title">System Design Prep</div>
+              <div className="app-brand-sub">
+                {total} HLD · {LLD_PROBLEMS.length} LLD questions
+              </div>
+            </div>
+          </div>
+          <div className="app-stats">
+            <span>
+              HLD <strong>{attemptedCount}/{total}</strong>
+            </span>
+            <span>
+              LLD <strong>{lldAttemptedCount}/{LLD_PROBLEMS.length}</strong>
+            </span>
+            <span className="good">
+              CONF <strong>{doneCount + lldDoneCount}</strong>
+            </span>
+            <span className="accent">
+              MOCKS <strong>{data.mockCount + data.lldMockCount}</strong>
+            </span>
+          </div>
+        </header>
+
+        <div className="app-body">
+          <nav className="app-nav">
+            {navSections.map((section) => (
+              <div key={section.label}>
+                <div className="nav-section-label">{section.label}</div>
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`nav-btn ${view === item.id ? "active" : ""}`}
+                      onClick={() => handleNav(item.id)}
+                    >
+                      <span className="nav-btn-num">{item.num}</span>
+                      <Icon size={14} />
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+
+          <main className="app-main">
+            <div
+                key={view + (activeProblemId || "") + (lldActiveProblemId || "")}
+              >
+                {view === "framework" && <FrameworkView />}
+                {view === "concepts" && <ConceptsView />}
+                {view === "lld-guide" && <LldGuideView />}
+                {view === "problems" && !activeProblemId && (
+                  <div>
+                    <SectionHeader
+                      eyebrow="02 / HLD PROBLEM SET"
+                      title={`${total} system design problems`}
+                      sub="Product designs, infra primitives, marketplaces, and AI systems from FAANG and startup interviews."
+                    />
+                    <ProblemFilters
+                      query={query}
+                      setQuery={setQuery}
+                      tag={tag}
+                      setTag={setTag}
+                      category={category}
+                      setCategory={setCategory}
+                      count={filtered.length}
+                    />
+                    <ProblemListView problemsState={data.problems} onOpen={setActiveProblemId} filtered={filtered} />
+                  </div>
+                )}
+                {view === "problems" && activeProblemId && (
+                  <ProblemDetailView
+                    problem={PROBLEMS.find((p) => p.id === activeProblemId)}
+                    state={data.problems[activeProblemId]}
+                    onBack={() => setActiveProblemId(null)}
+                    onStatus={(s) => setProblemStatus(activeProblemId, s)}
+                    onNotes={(n) => setProblemNotes(activeProblemId, n)}
+                    onStartMock={() => {
+                      setView("mock");
+                      setMockProblemId(activeProblemId);
+                    }}
+                  />
+                )}
+                {view === "lld-problems" && !lldActiveProblemId && (
+                  <div>
+                    <SectionHeader
+                      eyebrow="05 / LLD QUESTIONS"
+                      title={`${LLD_PROBLEMS.length} low-level design questions`}
+                      sub="Parking lot, Splitwise, patterns, concurrency — each opens a CodeSandbox-style workspace with file tree, editor, console, and hidden Jest tests."
+                    />
+                    <ProblemFilters
+                      query={lldQuery}
+                      setQuery={setLldQuery}
+                      tag={lldTag}
+                      setTag={setLldTag}
+                      category={lldCategory}
+                      setCategory={setLldCategory}
+                      count={lldFiltered.length}
+                      categories={LLD_CATEGORIES}
+                    />
+                    <ProblemListView problemsState={data.lldProblems} onOpen={setLldActiveProblemId} filtered={lldFiltered} />
+                  </div>
+                )}
+                {view === "lld-problems" && lldActiveProblemId && (
+                  <LldProblemDetailView
+                    problem={LLD_PROBLEMS.find((p) => p.id === lldActiveProblemId)}
+                    state={data.lldProblems[lldActiveProblemId]}
+                    onBack={() => setLldActiveProblemId(null)}
+                    onStatus={(s) => setLldProblemStatus(lldActiveProblemId, s)}
+                    onNotes={(n) => setLldProblemNotes(lldActiveProblemId, n)}
+                    onStartMock={() => {
+                      setView("lld-mock");
+                      setLldMockProblemId(lldActiveProblemId);
+                    }}
+                  />
+                )}
+                {view === "progress" && (
+                  <ProgressView
+                    data={data}
+                    onOpenHld={(id) => {
+                      setView("problems");
+                      setActiveProblemId(id);
+                    }}
+                    onOpenLld={(id) => {
+                      setView("lld-problems");
+                      setLldActiveProblemId(id);
+                    }}
+                  />
+                )}
+                {(view === "mock" || view === "lld-mock") && (
+                  <SectionHeader
+                    eyebrow="MOCK"
+                    title="Open from the sidebar or a problem detail page"
+                    sub="Pick HLD Mock or LLD Code Room, then choose a question."
+                  />
+                )}
+              </div>
+          </main>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { StrictMode, Component } from "react";
 import { createRoot } from "react-dom/client";
 import SystemDesignPrep from "./SystemDesignPrep.jsx";
 import "./index.css";
+import "./styles/app.css";
 
 class RootBoundary extends Component {
   constructor(props) {

@@ -1,4 +1,5 @@
-import { Component, memo, useCallback, useEffect, useRef, useState } from "react";
+import { Component, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { formatProblemStatement } from "../lib/problemStatement.js";
 
 class BoardBoundary extends Component {
   constructor(props) {
@@ -27,13 +28,13 @@ class BoardBoundary extends Component {
   }
 }
 
-function ExcalidrawInner({ onStatsChange }) {
+function ExcalidrawInner({ onStatsChange, problem }) {
   const [Comp, setComp] = useState(null);
+  const [convert, setConvert] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const statsRef = useRef(onStatsChange);
   statsRef.current = onStatsChange;
 
-  // Stable handler — parent timer must NOT recreate this or Excalidraw loops
   const onChange = useCallback((elements) => {
     const visible = (elements || []).filter((el) => !el.isDeleted);
     statsRef.current?.({
@@ -43,13 +44,92 @@ function ExcalidrawInner({ onStatsChange }) {
     });
   }, []);
 
+  const initialData = useMemo(() => {
+    const statement = formatProblemStatement(problem);
+    let elements = [];
+    if (convert && statement) {
+      try {
+        elements = convert([
+          {
+            type: "text",
+            x: 48,
+            y: 36,
+            text: statement,
+            fontSize: 18,
+            strokeColor: "#1e1e1e",
+          },
+        ]);
+      } catch (e) {
+        console.warn("Could not seed Excalidraw text", e);
+      }
+    }
+    return {
+      elements,
+      appState: {
+        viewBackgroundColor: "#ffffff",
+        currentItemStrokeColor: "#1e1e1e",
+        currentItemBackgroundColor: "transparent",
+        gridSize: null,
+        gridModeEnabled: false,
+        zenModeEnabled: false,
+        zoom: { value: 1 },
+        scrollX: 0,
+        scrollY: 0,
+      },
+    };
+  }, [problem, convert]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const mod = await import("@excalidraw/excalidraw");
         await import("@excalidraw/excalidraw/index.css");
-        if (!cancelled) setComp(() => mod.Excalidraw);
+        if (!cancelled) {
+          if (typeof mod.convertToExcalidrawElements === "function") {
+            setConvert(() => mod.convertToExcalidrawElements);
+          } else {
+            setConvert(() => (skeleton) =>
+              (skeleton || []).map((s, i) => ({
+                id: `seed-${i}`,
+                type: "text",
+                x: s.x ?? 48,
+                y: s.y ?? 36,
+                width: 720,
+                height: 400,
+                angle: 0,
+                strokeColor: s.strokeColor || "#1e1e1e",
+                backgroundColor: "transparent",
+                fillStyle: "solid",
+                strokeWidth: 1,
+                strokeStyle: "solid",
+                roughness: 0,
+                opacity: 100,
+                groupIds: [],
+                frameId: null,
+                roundness: null,
+                seed: 1 + i,
+                version: 1,
+                versionNonce: 1 + i,
+                isDeleted: false,
+                boundElements: null,
+                updated: Date.now(),
+                link: null,
+                locked: false,
+                text: s.text || "",
+                fontSize: s.fontSize || 18,
+                fontFamily: 1,
+                textAlign: "left",
+                verticalAlign: "top",
+                containerId: null,
+                originalText: s.text || "",
+                lineHeight: 1.25,
+                autoResize: true,
+              }))
+            );
+          }
+          setComp(() => mod.Excalidraw);
+        }
       } catch (e) {
         console.error(e);
         if (!cancelled) setLoadError(e);
@@ -69,7 +149,7 @@ function ExcalidrawInner({ onStatsChange }) {
     );
   }
 
-  if (!Comp) {
+  if (!Comp || !convert) {
     return (
       <div
         style={{
@@ -89,6 +169,7 @@ function ExcalidrawInner({ onStatsChange }) {
   return (
     <div style={{ width: "100%", height: "100%", background: "#fff" }}>
       <Comp
+        key={problem?.id || "board"}
         onChange={onChange}
         theme="light"
         UIOptions={{
@@ -102,26 +183,16 @@ function ExcalidrawInner({ onStatsChange }) {
             saveAsImage: true,
           },
         }}
-        initialData={{
-          appState: {
-            viewBackgroundColor: "#ffffff",
-            currentItemStrokeColor: "#1e1e1e",
-            currentItemBackgroundColor: "transparent",
-            gridSize: null,
-            gridModeEnabled: false,
-            zenModeEnabled: false,
-            zoom: { value: 1 },
-          },
-        }}
+        initialData={initialData}
       />
     </div>
   );
 }
 
-function ExcalidrawBoard({ onStatsChange }) {
+function ExcalidrawBoard({ onStatsChange, problem }) {
   return (
     <BoardBoundary>
-      <ExcalidrawInner onStatsChange={onStatsChange} />
+      <ExcalidrawInner onStatsChange={onStatsChange} problem={problem} />
     </BoardBoundary>
   );
 }

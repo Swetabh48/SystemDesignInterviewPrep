@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Mic, Square, VideoOff, X } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Mic, Square, VideoOff, X } from "lucide-react";
 import { FRAMEWORK_STEPS } from "../data/framework.js";
+import { problemBriefLines } from "../lib/problemStatement.js";
 import ExcalidrawBoard from "./ExcalidrawBoard.jsx";
+import GazeGuard from "./GazeGuard.jsx";
 
 function scoreDeviceLabel(label = "") {
   const l = label.toLowerCase();
@@ -233,6 +235,8 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
   const [camLabel, setCamLabel] = useState("");
   const [camDevices, setCamDevices] = useState([]);
   const [camDeviceId, setCamDeviceId] = useState("");
+  const [briefOpen, setBriefOpen] = useState(true);
+  const endedRef = useRef(false);
 
   const streamRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -409,15 +413,28 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
     }
   }
 
-  function finish() {
+  function finish(extra = {}) {
+    if (endedRef.current) return;
+    endedRef.current = true;
     onEnd({
       transcript,
       notes,
       strokeCount: boardStats.strokeCount,
       shapeCount: boardStats.shapeCount,
       elapsedSec,
+      ...extra,
     });
   }
+
+  function handleGazeFail({ warnings }) {
+    finish({
+      integrityFail: true,
+      gazeWarnings: warnings,
+      integrityPenalty: 100,
+    });
+  }
+
+  const brief = problemBriefLines(problem);
 
   return (
     <div
@@ -565,8 +582,80 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
       )}
 
       <div style={{ flex: 1, minHeight: 0, position: "relative", background: "#fff" }}>
+        {panel === "board" && (
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              left: 10,
+              right: 10,
+              zIndex: 35,
+              maxWidth: 720,
+              background: "rgba(255,255,255,0.97)",
+              border: "1px solid #dee2e6",
+              borderRadius: 10,
+              boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
+              overflow: "hidden",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setBriefOpen((o) => !o)}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 14px",
+                border: "none",
+                background: "#f8f9fa",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span style={{ flex: 1, fontWeight: 700, fontSize: 14, color: "#111" }}>{brief.title}</span>
+              <span style={{ fontSize: 11, color: "#868e96" }}>Problem statement</span>
+              {briefOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+            {briefOpen && (
+              <div style={{ padding: "12px 14px 14px", fontSize: 13, lineHeight: 1.55, color: "#343a40", maxHeight: 220, overflow: "auto" }}>
+                <p style={{ margin: "0 0 10px", fontWeight: 500 }}>{brief.prompt}</p>
+                {brief.clarify.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 11, letterSpacing: "0.04em", color: "#868e96", marginBottom: 4 }}>CLARIFY</div>
+                    <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
+                      {brief.clarify.map((r) => (
+                        <li key={r}>{r}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {brief.scale.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 11, letterSpacing: "0.04em", color: "#868e96", marginBottom: 4 }}>SCALE</div>
+                    <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
+                      {brief.scale.map((r) => (
+                        <li key={r}>{r}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {brief.focus.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 11, letterSpacing: "0.04em", color: "#868e96", marginBottom: 4 }}>FOCUS</div>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {brief.focus.map((r) => (
+                        <li key={r}>{r}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <div style={{ position: "absolute", inset: 0, display: panel === "board" ? "block" : "none" }}>
-          <ExcalidrawBoard onStatsChange={onBoardStats} />
+          <ExcalidrawBoard onStatsChange={onBoardStats} problem={problem} />
         </div>
         {panel === "docs" && (
           <textarea
@@ -665,6 +754,10 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
           onClose={() => setShowPip(false)}
           onRetry={() => openCamera(camDeviceId || null)}
         />
+      )}
+
+      {stream && (
+        <GazeGuard stream={stream} enabled={!endedRef.current} onFail={handleGazeFail} />
       )}
     </div>
   );
