@@ -32,8 +32,24 @@ function ExcalidrawInner({ onStatsChange, problem }) {
   const [Comp, setComp] = useState(null);
   const [convert, setConvert] = useState(null);
   const [loadError, setLoadError] = useState(null);
+  const [boardTheme, setBoardTheme] = useState(() =>
+    document.documentElement.closest("[data-theme]")?.getAttribute("data-theme") === "dark" ||
+    document.querySelector(".app-root")?.getAttribute("data-theme") === "dark"
+      ? "dark"
+      : "light"
+  );
   const statsRef = useRef(onStatsChange);
   statsRef.current = onStatsChange;
+
+  useEffect(() => {
+    const root = document.querySelector(".app-root");
+    if (!root) return;
+    const sync = () => setBoardTheme(root.getAttribute("data-theme") === "dark" ? "dark" : "light");
+    sync();
+    const obs = new MutationObserver(sync);
+    obs.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
 
   const onChange = useCallback((elements) => {
     const visible = (elements || []).filter((el) => !el.isDeleted);
@@ -167,11 +183,11 @@ function ExcalidrawInner({ onStatsChange, problem }) {
   }
 
   return (
-    <div style={{ width: "100%", height: "100%", background: "#fff" }}>
+    <div style={{ width: "100%", height: "100%", background: boardTheme === "dark" ? "#1e1e1e" : "#fff" }}>
       <Comp
-        key={problem?.id || "board"}
+        key={`${problem?.id || "board"}-${boardTheme}`}
         onChange={onChange}
-        theme="light"
+        theme={boardTheme}
         UIOptions={{
           canvasActions: {
             changeViewBackgroundColor: true,

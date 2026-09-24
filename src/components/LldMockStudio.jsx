@@ -30,6 +30,7 @@ function ScoreBar({ label, value }) {
 
 export default function LldMockStudio({ problems, mockProblemId, onPickProblem, onSaveResult, onExit, fullPage }) {
   const [live, setLive] = useState(false);
+  const [interviewMode, setInterviewMode] = useState(false);
   const [ended, setEnded] = useState(false);
   const [rubricChecks, setRubricChecks] = useState([]);
   const [analysis, setAnalysis] = useState(null);
@@ -37,7 +38,8 @@ export default function LldMockStudio({ problems, mockProblemId, onPickProblem, 
 
   const problem = problems.find((p) => p.id === mockProblemId);
 
-  function beginLive() {
+  function beginSession(asInterview) {
+    setInterviewMode(asInterview);
     setRubricChecks(problem.rubric.map(() => false));
     setAnalysis(null);
     setEnded(false);
@@ -96,7 +98,17 @@ export default function LldMockStudio({ problems, mockProblemId, onPickProblem, 
   }
 
   if (live && problem) {
-    return <CodeRoom problem={problem} onEnd={handleEnd} onLeave={() => { setLive(false); onExit(); }} />;
+    return (
+      <CodeRoom
+        problem={problem}
+        interviewMode={interviewMode}
+        onEnd={handleEnd}
+        onLeave={() => {
+          setLive(false);
+          onExit();
+        }}
+      />
+    );
   }
 
   const shell = fullPage ? "mock-shell full-page" : "mock-shell";
@@ -108,7 +120,7 @@ export default function LldMockStudio({ problems, mockProblemId, onPickProblem, 
         <SectionHeader
           eyebrow="06 / LLD CODE ROOM"
           title="Pick a low-level design question"
-          sub="Sandpack sandbox with TypeScript, live console, camera, mic, 60-min timer, and gaze monitor."
+          sub="Practice with the sandbox only, or use Interview mode for camera, mic, and gaze checks."
         />
         <div className="problem-pick-list">
           {problems.map((p) => (
@@ -202,15 +214,18 @@ export default function LldMockStudio({ problems, mockProblemId, onPickProblem, 
         <span className="tag">{problem.source}</span>
       </div>
       <ul className="ready-list">
-        <li>Sandpack workspace like CodeSandbox: file explorer, tabs, Jest tests panel, console.</li>
-        <li>Hidden test file auto-runs — implement solution.ts until tests pass.</li>
-        <li>60-minute countdown · camera + mic + transcript auto-start.</li>
-        <li>3 gaze warnings → session ends with −100 points.</li>
-        <li>Talk through clarify → classes → APIs → patterns while you type.</li>
+        <li><strong>Practice</strong> — sandbox + timer only. No camera, mic, or gaze.</li>
+        <li><strong>Interview</strong> — camera, mic, transcript, and gaze (3 warnings → −100).</li>
+        <li>Hidden Jest tests run against solution.ts.</li>
       </ul>
-      <button type="button" className="btn-accent-lg" onClick={beginLive}>
-        <Code2 size={16} /> Enter code room
-      </button>
+      <div className="action-row">
+        <button type="button" className="btn-accent-lg" onClick={() => beginSession(false)}>
+          <Code2 size={16} /> Practice (no camera)
+        </button>
+        <button type="button" className="btn-primary" onClick={() => beginSession(true)}>
+          Interview mode
+        </button>
+      </div>
     </div>
   );
 }

@@ -50,6 +50,7 @@ export default function MockStudio({
   fullPage,
 }) {
   const [live, setLive] = useState(false);
+  const [interviewMode, setInterviewMode] = useState(false);
   const [ended, setEnded] = useState(false);
   const [rubricChecks, setRubricChecks] = useState([]);
   const [analysis, setAnalysis] = useState(null);
@@ -57,7 +58,8 @@ export default function MockStudio({
 
   const problem = problems.find((p) => p.id === mockProblemId);
 
-  function beginLive() {
+  function beginSession(asInterview) {
+    setInterviewMode(asInterview);
     setRubricChecks(problem.rubric.map(() => false));
     setAnalysis(null);
     setEnded(false);
@@ -123,6 +125,7 @@ export default function MockStudio({
     return (
       <LiveRoom
         problem={problem}
+        interviewMode={interviewMode}
         onEnd={handleEnd}
         onLeave={() => {
           setLive(false);
@@ -349,31 +352,18 @@ export default function MockStudio({
         <span style={{ fontSize: 11, border: "1px solid var(--border)", borderRadius: 4, padding: "2px 8px", color: "var(--text-dim)" }}>{problem.category}</span>
       </div>
       <ul style={{ margin: "0 0 20px", paddingLeft: 18, color: "var(--text-dim)", fontSize: 13, lineHeight: 1.6 }}>
-        <li>Camera + mic + transcript start automatically when you enter.</li>
-        <li>Allow camera if the browser asks. Your face floats bottom-right (drag/resize).</li>
-        <li>Full problem statement is written on the whiteboard and pinned at the top.</li>
-        <li>Gaze monitor: 3 look-away warnings ends the session with −100 points.</li>
-        <li>Score is based on transcript + whiteboard + notes — silence = near zero.</li>
+        <li><strong>Practice</strong> — Excalidraw whiteboard + timer. No camera or mic.</li>
+        <li><strong>Interview</strong> — camera, mic, transcript, gaze monitor (3 warnings → −100).</li>
+        <li>Problem statement is pinned on the board.</li>
       </ul>
-      <button
-        type="button"
-        onClick={beginLive}
-        style={{
-          background: "var(--amber)",
-          color: "#0A0D10",
-          border: "none",
-          borderRadius: 8,
-          padding: "12px 20px",
-          fontSize: 14,
-          fontWeight: 600,
-          cursor: "pointer",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <Camera size={16} /> Enter live mock room
-      </button>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button type="button" className="btn-accent-lg" onClick={() => beginSession(false)}>
+          Practice (no camera)
+        </button>
+        <button type="button" className="btn-primary" onClick={() => beginSession(true)}>
+          <Camera size={16} /> Interview mode
+        </button>
+      </div>
     </div>
   );
 }

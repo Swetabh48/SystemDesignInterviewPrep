@@ -156,7 +156,6 @@ export function useInterviewMedia({ maxSeconds = 3600, autoStart = true } = {}) 
   }
 
   useEffect(() => {
-    if (!autoStart) return;
     timerRef.current = setInterval(() => {
       setElapsedSec((s) => {
         const next = s + 1;
@@ -164,17 +163,25 @@ export function useInterviewMedia({ maxSeconds = 3600, autoStart = true } = {}) 
         return next;
       });
     }, 1000);
-    const t = window.setTimeout(() => {
-      openCamera(null);
-      startSpeech();
-    }, 150);
+
+    let t;
+    if (autoStart) {
+      t = window.setTimeout(() => {
+        openCamera(null);
+        startSpeech();
+      }, 150);
+    }
+
     const releaseOnHide = () => {
       if (document.hidden) stopCamera();
     };
-    document.addEventListener("visibilitychange", releaseOnHide);
-    window.addEventListener("pagehide", stopCamera);
+    if (autoStart) {
+      document.addEventListener("visibilitychange", releaseOnHide);
+      window.addEventListener("pagehide", stopCamera);
+    }
+
     return () => {
-      window.clearTimeout(t);
+      if (t) window.clearTimeout(t);
       document.removeEventListener("visibilitychange", releaseOnHide);
       window.removeEventListener("pagehide", stopCamera);
       if (timerRef.current) clearInterval(timerRef.current);

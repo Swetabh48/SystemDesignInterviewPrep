@@ -208,7 +208,7 @@ function PipCamera({ stream, camError, onClose, onRetry }) {
   );
 }
 
-export default function LiveRoom({ problem, onEnd, onLeave }) {
+export default function LiveRoom({ problem, onEnd, onLeave, interviewMode = false }) {
   const [elapsedSec, setElapsedSec] = useState(0);
   const [notes, setNotes] = useState("");
   const [transcript, setTranscript] = useState("");
@@ -251,19 +251,24 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
 
   useEffect(() => {
     timerRef.current = setInterval(() => setElapsedSec((s) => s + 1), 1000);
-    const t = window.setTimeout(() => {
-      startCamera();
-      startSpeech();
-    }, 150);
+    let t;
+    if (interviewMode) {
+      t = window.setTimeout(() => {
+        startCamera();
+        startSpeech();
+      }, 150);
+    }
 
     const releaseOnHide = () => {
       if (document.hidden) stopCamera();
     };
-    document.addEventListener("visibilitychange", releaseOnHide);
-    window.addEventListener("pagehide", stopCamera);
+    if (interviewMode) {
+      document.addEventListener("visibilitychange", releaseOnHide);
+      window.addEventListener("pagehide", stopCamera);
+    }
 
     return () => {
-      window.clearTimeout(t);
+      if (t) window.clearTimeout(t);
       document.removeEventListener("visibilitychange", releaseOnHide);
       window.removeEventListener("pagehide", stopCamera);
       if (timerRef.current) clearInterval(timerRef.current);
@@ -271,7 +276,7 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
       stopSpeech();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [interviewMode]);
 
   function stopCamera() {
     if (streamRef.current) {
@@ -427,6 +432,7 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
   }
 
   function handleGazeFail({ warnings }) {
+    if (!interviewMode) return;
     finish({
       integrityFail: true,
       gazeWarnings: warnings,
@@ -437,107 +443,46 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
   const brief = problemBriefLines(problem);
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 50,
-        display: "flex",
-        flexDirection: "column",
-        background: "#ffffff",
-        color: "#111",
-        fontFamily: "Inter, system-ui, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          height: 52,
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "0 14px",
-          background: "#111317",
-          color: "#fff",
-          borderBottom: "1px solid #2a2f36",
-        }}
-      >
+    <div className="live-room">
+      <div className="live-room-header">
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {problem.title}
           </div>
           <div style={{ fontSize: 11, color: "#9aa3ad" }}>
-            {currentPhase.num} · {currentPhase.title}
-            {camLabel ? ` · ${camLabel}` : ""}
+            HLD · {interviewMode ? "Interview" : "Practice"} · {currentPhase.title}
+            {interviewMode && camLabel ? ` · ${camLabel}` : ""}
           </div>
         </div>
-        <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 22, fontWeight: 600, color: "#E8A33D" }}>
+        <div className="live-room-timer">
           {mm}:{ss}
         </div>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "7px 12px",
-            borderRadius: 8,
-            background: listening ? "rgba(63,182,139,0.15)" : "#2a1f1a",
-            color: listening ? "#3FB68B" : "#ffb4a8",
-            fontSize: 12,
-          }}
-        >
-          <Mic size={14} /> {listening ? "Mic live" : "Mic off"}
-        </div>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "7px 12px",
-            borderRadius: 8,
-            background: stream ? "rgba(63,182,139,0.15)" : "#2a1f1a",
-            color: stream ? "#3FB68B" : "#ffb4a8",
-            fontSize: 12,
-          }}
-        >
-          Cam {stream ? "live" : "off"}
-        </div>
-        {camDevices.length > 0 && (
-          <select
-            value={camDeviceId}
-            onChange={(e) => switchCamera(e.target.value)}
-            title="Pick HP True Vision — not Virtual Camera"
-            style={{
-              maxWidth: 220,
-              background: "#1a1d21",
-              color: "#e7eaee",
-              border: "1px solid #2a2f36",
-              borderRadius: 8,
-              padding: "7px 8px",
-              fontSize: 12,
-            }}
-          >
-            {camDevices.map((d, i) => (
-              <option key={d.deviceId} value={d.deviceId}>
-                {d.label || `Camera ${i + 1}`}
-                {/virtual/i.test(d.label || "") ? " (avoid)" : ""}
-              </option>
-            ))}
-          </select>
+        {interviewMode && (
+          <>
+            <div className={`code-room-pill ${listening ? "live" : "off"}`}>
+              <Mic size={14} /> {listening ? "Mic live" : "Mic off"}
+            </div>
+            <div className={`code-room-pill ${stream ? "live" : "off"}`}>Cam {stream ? "live" : "off"}</div>
+            {camDevices.length > 0 && (
+              <select value={camDeviceId} onChange={(e) => switchCamera(e.target.value)} className="code-room-select">
+                {camDevices.map((d, i) => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {d.label || `Camera ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+            )}
+            {!showPip && (
+              <button type="button" onClick={() => setShowPip(true)} style={btn(false)}>
+                Show cam
+              </button>
+            )}
+          </>
         )}
         <button type="button" onClick={() => setPanel(panel === "docs" ? "board" : "docs")} style={btn(panel === "docs")}>
           <FileText size={16} /> Docs
         </button>
-        {!showPip && (
-          <button type="button" onClick={() => setShowPip(true)} style={btn(false)}>
-            Show cam
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={finish}
-          style={{ ...btn(false), background: "#E2664A", color: "#fff", border: "none" }}
-        >
+        <button type="button" onClick={finish} className="code-room-end">
           <Square size={14} /> End & score
         </button>
         <button type="button" onClick={onLeave} style={btn(false)} title="Leave">
@@ -545,84 +490,31 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
         </button>
       </div>
 
-      {(camError || micError) && (
-        <div
-          style={{
-            padding: "10px 14px",
-            background: "#3a1f1a",
-            color: "#ffb4a8",
-            fontSize: 13,
-            lineHeight: 1.45,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <span style={{ flex: 1 }}>{camError || micError}</span>
+      {interviewMode && (camError || micError) && (
+        <div className="code-room-alert">
+          <span>{camError || micError}</span>
           {camError && (
-            <button
-              type="button"
-              onClick={() => openCamera(camDeviceId || null)}
-              style={{
-                background: "#E8A33D",
-                color: "#111",
-                border: "none",
-                borderRadius: 6,
-                padding: "6px 12px",
-                fontWeight: 600,
-                fontSize: 12,
-                cursor: "pointer",
-              }}
-            >
+            <button type="button" onClick={() => openCamera(camDeviceId || null)}>
               Retry camera
             </button>
           )}
         </div>
       )}
 
-      <div style={{ flex: 1, minHeight: 0, position: "relative", background: "#fff" }}>
+      <div className="live-room-body">
         {panel === "board" && (
-          <div
-            style={{
-              position: "absolute",
-              top: 10,
-              left: 10,
-              right: 10,
-              zIndex: 35,
-              maxWidth: 720,
-              background: "rgba(255,255,255,0.97)",
-              border: "1px solid #dee2e6",
-              borderRadius: 10,
-              boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
-              overflow: "hidden",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setBriefOpen((o) => !o)}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 14px",
-                border: "none",
-                background: "#f8f9fa",
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-            >
-              <span style={{ flex: 1, fontWeight: 700, fontSize: 14, color: "#111" }}>{brief.title}</span>
-              <span style={{ fontSize: 11, color: "#868e96" }}>Problem statement</span>
+          <div className="code-room-brief">
+            <button type="button" className="code-room-brief-toggle" onClick={() => setBriefOpen((o) => !o)}>
+              <span className="code-room-brief-title">{brief.title}</span>
+              <span className="code-room-brief-meta">Problem statement</span>
               {briefOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
             {briefOpen && (
-              <div style={{ padding: "12px 14px 14px", fontSize: 13, lineHeight: 1.55, color: "#343a40", maxHeight: 220, overflow: "auto" }}>
+              <div className="code-room-brief-body">
                 <p style={{ margin: "0 0 10px", fontWeight: 500 }}>{brief.prompt}</p>
                 {brief.clarify.length > 0 && (
                   <>
-                    <div style={{ fontSize: 11, letterSpacing: "0.04em", color: "#868e96", marginBottom: 4 }}>CLARIFY</div>
+                    <div className="code-room-brief-label">CLARIFY</div>
                     <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
                       {brief.clarify.map((r) => (
                         <li key={r}>{r}</li>
@@ -632,7 +524,7 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
                 )}
                 {brief.scale.length > 0 && (
                   <>
-                    <div style={{ fontSize: 11, letterSpacing: "0.04em", color: "#868e96", marginBottom: 4 }}>SCALE</div>
+                    <div className="code-room-brief-label">SCALE</div>
                     <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
                       {brief.scale.map((r) => (
                         <li key={r}>{r}</li>
@@ -642,7 +534,7 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
                 )}
                 {brief.focus.length > 0 && (
                   <>
-                    <div style={{ fontSize: 11, letterSpacing: "0.04em", color: "#868e96", marginBottom: 4 }}>FOCUS</div>
+                    <div className="code-room-brief-label">FOCUS</div>
                     <ul style={{ margin: 0, paddingLeft: 18 }}>
                       {brief.focus.map((r) => (
                         <li key={r}>{r}</li>
@@ -659,95 +551,44 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
         </div>
         {panel === "docs" && (
           <textarea
+            className="code-room-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Requirements · API · data model · deep-dive notes…"
-            style={{
-              width: "100%",
-              height: "100%",
-              border: "none",
-              outline: "none",
-              resize: "none",
-              padding: "24px 28px",
-              fontSize: 15,
-              lineHeight: 1.6,
-              fontFamily: "IBM Plex Mono, ui-monospace, monospace",
-              color: "#212529",
-              background: "#fff",
-            }}
           />
         )}
 
-        {/* Transcript always on */}
-        <div
-          style={{
-            position: "absolute",
-            left: 12,
-            bottom: 12,
-            width: 340,
-            maxHeight: 200,
-            overflow: "auto",
-            background: "rgba(17,19,23,0.94)",
-            color: "#d0d5db",
-            borderRadius: 10,
-            padding: 12,
-            fontSize: 12,
-            lineHeight: 1.45,
-            zIndex: 40,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
-          }}
-        >
-          <div style={{ fontSize: 10, letterSpacing: "0.06em", color: "#E8A33D", marginBottom: 6 }}>
-            LIVE TRANSCRIPT {listening ? "· listening" : ""}
+        {interviewMode && (
+          <div className="code-room-transcript">
+            <div className="code-room-transcript-label">LIVE TRANSCRIPT {listening ? "· listening" : ""}</div>
+            {transcript || interim ? (
+              <>
+                {transcript}
+                {interim ? <span className="dim"> {interim}</span> : null}
+              </>
+            ) : (
+              <span className="dim">Speak out loud — words appear here as you talk.</span>
+            )}
           </div>
-          {transcript || interim ? (
-            <>
-              {transcript}
-              {interim ? <span style={{ opacity: 0.6 }}> {interim}</span> : null}
-            </>
-          ) : (
-            <span style={{ color: "#8B96A3" }}>Speak out loud — words appear here as you talk.</span>
-          )}
-        </div>
+        )}
       </div>
 
-      <div
-        style={{
-          flexShrink: 0,
-          padding: "8px 14px",
-          background: "#111317",
-          borderTop: "1px solid #2a2f36",
-          fontSize: 12,
-          color: "#9aa3ad",
-          display: "flex",
-          gap: 16,
-          alignItems: "center",
-        }}
-      >
-        <span style={{ color: "#E8A33D", fontFamily: "IBM Plex Mono, monospace" }}>TIP</span>
-        <span style={{ flex: 1 }}>{currentPhase.tip}</span>
-        <div style={{ display: "flex", gap: 2, width: 160 }}>
+      <div className="code-room-footer">
+        <span className="code-room-tip-label">TIP</span>
+        <span className="code-room-tip">{currentPhase.tip}</span>
+        <div className="code-room-phases">
           {FRAMEWORK_STEPS.map((s) => (
             <div
               key={s.num}
               title={s.title}
-              style={{
-                flex: s.minutes,
-                height: 4,
-                borderRadius: 2,
-                background:
-                  currentPhase.num === s.num
-                    ? "#E8A33D"
-                    : elapsedSec / 60 >= s.cumulative
-                      ? "#3FB68B"
-                      : "#2a2f36",
-              }}
+              className={`code-room-phase ${currentPhase.num === s.num ? "active" : elapsedSec / 60 >= s.cumulative ? "done" : ""}`}
+              style={{ flex: s.minutes }}
             />
           ))}
         </div>
       </div>
 
-      {showPip && (
+      {interviewMode && showPip && (
         <PipCamera
           stream={stream}
           camError={camError}
@@ -756,9 +597,7 @@ export default function LiveRoom({ problem, onEnd, onLeave }) {
         />
       )}
 
-      {stream && (
-        <GazeGuard stream={stream} enabled={!endedRef.current} onFail={handleGazeFail} />
-      )}
+      {interviewMode && stream && <GazeGuard stream={stream} enabled={!endedRef.current} onFail={handleGazeFail} />}
     </div>
   );
 }
@@ -768,13 +607,14 @@ function btn(active) {
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
-    padding: "7px 12px",
-    borderRadius: 8,
-    border: "1px solid #2a2f36",
-    background: active ? "#2a3340" : "#1a1d21",
-    color: active ? "#E8A33D" : "#c5ccd4",
+    padding: "5px 10px",
+    borderRadius: 0,
+    border: "1px solid #666",
+    background: active ? "#444" : "#333",
+    color: "#eee",
     fontSize: 12,
-    fontWeight: 500,
+    fontWeight: 700,
     cursor: "pointer",
+    fontFamily: "Arial, Helvetica, sans-serif",
   };
 }

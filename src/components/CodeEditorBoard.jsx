@@ -6,7 +6,6 @@ import {
   SandpackConsole,
   SandpackTests,
   SandpackFileExplorer,
-  SandpackPreview,
   useActiveCode,
   useSandpack,
 } from "@codesandbox/sandpack-react";
@@ -21,7 +20,7 @@ const sandpackTheme = {
     base: "#ffffff",
     disabled: "#6e7681",
     hover: "#f0f6fc",
-    accent: "#e8a838",
+    accent: "#cc8800",
   },
   syntax: {
     plain: "#d4d4d4",
@@ -35,8 +34,8 @@ const sandpackTheme = {
     string: { color: "#ce9178" },
   },
   font: {
-    body: '"IBM Plex Mono", monospace',
-    mono: '"IBM Plex Mono", monospace',
+    body: "Consolas, 'Courier New', monospace",
+    mono: "Consolas, 'Courier New', monospace",
     size: "13px",
     lineHeight: "20px",
   },
@@ -57,6 +56,7 @@ function TestSync({ onTestComplete }) {
     <SandpackTests
       hideTestsAndSupressLogs
       watchMode
+      style={{ flex: 1, height: "100%" }}
       onComplete={(specs) => {
         const entries = Object.values(specs || {});
         const total = entries.reduce((n, s) => n + (s.tests?.length || 0), 0);
@@ -74,7 +74,7 @@ function RunBar() {
   const { sandpack } = useSandpack();
   return (
     <div className="sandbox-runbar">
-      <span className="sandbox-runbar-label">CodeSandbox-style runner</span>
+      <span className="sandbox-runbar-label">Sandbox</span>
       <button type="button" onClick={() => sandpack.runSandpack()}>
         Run tests
       </button>
@@ -96,27 +96,31 @@ function SandpackWorkspace({ problem, onCodeChange, onTestComplete }) {
       theme={sandpackTheme}
       files={files}
       options={options}
+      style={{ height: "100%" }}
     >
       <CodeSync onCodeChange={onCodeChange} />
-      <div className="sandbox-root">
+      <div className="sandbox-root" style={{ height: "100%", minHeight: 0 }}>
         <RunBar />
-        <SandpackLayout className="sandbox-layout">
-          <SandpackFileExplorer className="sandbox-explorer" autoHiddenFiles />
-          <SandpackLayout className="sandbox-editor-col">
+        <div className="sandbox-workarea" style={{ flex: 1, minHeight: 0, height: "100%" }}>
+          <SandpackLayout
+            className="sandbox-layout"
+            style={{ height: "100%", flex: 1, border: "none", borderRadius: 0 }}
+          >
+            <SandpackFileExplorer style={{ minWidth: 160, maxWidth: 200, height: "100%" }} autoHiddenFiles />
             <SandpackCodeEditor
               showTabs
               showLineNumbers
               showInlineErrors
               wrapContent
               closableTabs
-              className="sandbox-editor"
+              style={{ flex: 1, height: "100%", minHeight: 0 }}
             />
-            <SandpackLayout className="sandbox-bottom">
+            <div className="sandbox-side">
               <TestSync onTestComplete={onTestComplete} />
-              <SandpackConsole className="sandbox-console" showHeader />
-            </SandpackLayout>
+              <SandpackConsole style={{ height: "40%", minHeight: 120 }} showHeader />
+            </div>
           </SandpackLayout>
-        </SandpackLayout>
+        </div>
       </div>
     </SandpackProvider>
   );
@@ -130,7 +134,7 @@ function CodeEditorBoard({ problem, onCodeChange, onTestComplete }) {
   if (!problem) {
     return (
       <div className="code-board-empty">
-        <span>Select an LLD question to open the sandbox workspace.</span>
+        <span>Select an LLD question to open the sandbox.</span>
       </div>
     );
   }

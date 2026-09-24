@@ -7,7 +7,9 @@ import {
   Code2,
   Layers,
   LineChart,
+  Moon,
   Play,
+  Sun,
   Terminal,
 } from "lucide-react";
 import { FRAMEWORK_STEPS, CONCEPTS } from "./data/framework.js";
@@ -27,6 +29,7 @@ const STATUS = {
 };
 
 const STORAGE_KEY = "sdprep-state-v3";
+const THEME_KEY = "sdprep-theme";
 
 function defaultState() {
   const problems = {};
@@ -555,6 +558,21 @@ export default function SystemDesignPrep() {
   const [lldQuery, setLldQuery] = useState("");
   const [lldTag, setLldTag] = useState("");
   const [lldCategory, setLldCategory] = useState("");
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      /* best effort */
+    }
+  }, [theme]);
 
   useEffect(() => {
     try {
@@ -708,7 +726,7 @@ export default function SystemDesignPrep() {
   // Full-page mock experiences
   if (view === "mock") {
     return (
-      <div className="app-root">
+      <div className="app-root" data-theme={theme}>
         <MockStudio
           fullPage
           problems={PROBLEMS}
@@ -726,7 +744,7 @@ export default function SystemDesignPrep() {
 
   if (view === "lld-mock") {
     return (
-      <div className="app-root">
+      <div className="app-root" data-theme={theme}>
         <LldMockStudio
           fullPage
           problems={LLD_PROBLEMS}
@@ -751,7 +769,7 @@ export default function SystemDesignPrep() {
   }
 
   return (
-    <div className="app-root">
+    <div className="app-root" data-theme={theme}>
       <div className="app-bg">
         <div className="app-bg-grid" />
       </div>
@@ -781,6 +799,15 @@ export default function SystemDesignPrep() {
             <span className="accent">
               MOCKS <strong>{data.mockCount + data.lldMockCount}</strong>
             </span>
+            <button
+              type="button"
+              className="app-theme-toggle"
+              onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}{" "}
+              {theme === "dark" ? "Light" : "Dark"}
+            </button>
           </div>
         </header>
 

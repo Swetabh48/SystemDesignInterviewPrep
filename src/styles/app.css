@@ -1,11 +1,11 @@
 :root {
-  --bg: #f4f4f4;
+  --bg: #f0f0f0;
   --bg-elevated: #ffffff;
   --panel: #ffffff;
   --panel-solid: #ffffff;
   --panel-alt: #e8e8e8;
-  --border: #c0c0c0;
-  --border-strong: #808080;
+  --border: #b0b0b0;
+  --border-strong: #707070;
   --text: #111111;
   --text-dim: #555555;
   --bid: #006600;
@@ -14,18 +14,45 @@
   --violet: #333399;
   --cyan: #003399;
   --sandpack-accent: #cc6600;
-  --font-display: Georgia, "Times New Roman", Times, serif;
-  --font-body: Verdana, Geneva, Tahoma, sans-serif;
-  --font-mono: "Courier New", Courier, monospace;
+  --font-display: Arial, Helvetica, sans-serif;
+  --font-body: Arial, Helvetica, sans-serif;
+  --font-mono: Consolas, "Courier New", monospace;
   --radius: 0;
   --shadow: none;
   --glow: none;
-  --link: #0000ee;
+  --link: #0000cc;
   --link-visited: #551a8b;
-  --nav-bg: #e0e0e0;
-  --topbar-bg: #333333;
+  --nav-bg: #e4e4e4;
+  --topbar-bg: #2a2a2a;
   --topbar-text: #ffffff;
   --accent: #003399;
+  --room-bg: #1e1e1e;
+  --room-panel: #252526;
+}
+
+[data-theme="dark"] {
+  --bg: #1a1a1a;
+  --bg-elevated: #222222;
+  --panel: #2a2a2a;
+  --panel-solid: #2a2a2a;
+  --panel-alt: #333333;
+  --border: #555555;
+  --border-strong: #777777;
+  --text: #e8e8e8;
+  --text-dim: #aaaaaa;
+  --bid: #66cc66;
+  --ask: #ff7777;
+  --amber: #ddaa44;
+  --violet: #9999ff;
+  --cyan: #66aaff;
+  --link: #88bbff;
+  --link-visited: #bb88dd;
+  --nav-bg: #222222;
+  --topbar-bg: #111111;
+  --topbar-text: #ffffff;
+  --accent: #66aaff;
+  --room-bg: #1e1e1e;
+  --room-panel: #252526;
 }
 
 * {
@@ -386,21 +413,47 @@ a {
   z-index: 50;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  color: #111111;
+  background: var(--room-bg);
+  color: #e8e8e8;
   font-family: var(--font-body);
 }
 
-.code-room-header {
+.code-room-header,
+.live-room-header {
   height: 48px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 12px;
-  background: #333333;
+  background: #2a2a2a;
   border-bottom: 2px solid #000000;
   color: #ffffff;
+}
+
+.live-room {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+.live-room-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: var(--bg-elevated);
+}
+
+.live-room-timer {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffcc66;
 }
 
 .code-room-title {
@@ -516,19 +569,36 @@ a {
   flex: 1;
   min-height: 0;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--room-bg);
+}
+
+.code-room-main {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--room-bg);
 }
 
 .code-board,
 .code-board-empty {
-  position: absolute;
-  inset: 0;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 .code-board-empty {
   display: grid;
   place-items: center;
-  color: #666666;
-  background: #f4f4f4;
+  color: #aaaaaa;
+  background: var(--room-bg);
 }
 
 .code-room-brief {
@@ -632,17 +702,17 @@ a {
 .code-room-footer {
   flex-shrink: 0;
   padding: 6px 12px;
-  background: #e8e8e8;
-  border-top: 1px solid var(--border);
+  background: #2a2a2a;
+  border-top: 1px solid #000000;
   font-size: 11px;
-  color: var(--text-dim);
+  color: #bbbbbb;
   display: flex;
   gap: 14px;
   align-items: center;
 }
 
 .code-room-tip-label {
-  color: #000000;
+  color: #ffcc66;
   font-family: var(--font-mono);
   font-weight: 700;
 }
@@ -1102,12 +1172,53 @@ select:focus {
   outline-offset: 1px;
 }
 
-/* CodeSandbox-style LLD workspace */
+/* CodeSandbox-style LLD workspace — fill viewport, no white gap */
 .sandbox-root {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
   background: #1e1e1e;
+}
+
+.sandbox-workarea {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #1e1e1e;
+}
+
+.sandbox-workarea .sp-wrapper,
+.sandbox-workarea .sp-layout,
+.sandbox-root .sp-wrapper,
+.sandbox-root .sp-layout {
+  flex: 1 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: #1e1e1e !important;
+}
+
+.sandbox-workarea .sp-stack {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.sandbox-side {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  min-width: 220px;
+  max-width: 340px;
+  height: 100%;
+  min-height: 0;
+  border-left: 1px solid #000000;
+  background: #252526;
+  overflow: hidden;
 }
 
 .sandbox-runbar {
@@ -1115,6 +1226,7 @@ select:focus {
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
+  flex-shrink: 0;
   background: #333333;
   border-bottom: 1px solid #000000;
   font-family: var(--font-mono);
@@ -1135,6 +1247,7 @@ select:focus {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 .sandbox-runbar button.ghost {
@@ -1146,7 +1259,7 @@ select:focus {
 .sandbox-layout {
   flex: 1 !important;
   min-height: 0 !important;
-  height: calc(100% - 36px) !important;
+  height: 100% !important;
   border: none !important;
   border-radius: 0 !important;
 }
@@ -1191,4 +1304,51 @@ select:focus {
   padding: 4px 8px;
   border-radius: 0;
   border: 1px solid #000000;
+}
+
+.app-theme-toggle {
+  background: #444444;
+  color: #ffffff;
+  border: 1px solid #888888;
+  border-radius: 0;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.app-theme-toggle:hover {
+  background: #555555;
+}
+
+[data-theme="dark"] .code-room-brief {
+  background: #2a2a22;
+  border-color: #666644;
+}
+
+[data-theme="dark"] .code-room-brief-toggle {
+  background: #333322;
+  color: #eeeeee;
+  border-bottom-color: #666644;
+}
+
+[data-theme="dark"] .code-room-brief-body {
+  color: #dddddd;
+}
+
+[data-theme="dark"] .code-room-brief-meta,
+[data-theme="dark"] .code-room-brief-label {
+  color: #aaaaaa;
+}
+
+[data-theme="dark"] .code-room-notes {
+  background: #1e1e1e;
+  color: #e8e8e8;
+}
+
+[data-theme="dark"] .code-room-transcript {
+  background: #2a2a22;
+  color: #dddddd;
+  border-color: #666644;
 }

@@ -11,28 +11,29 @@ function roomBtn(active) {
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
-    padding: "7px 12px",
-    borderRadius: 8,
-    border: "1px solid #2a2f36",
-    background: active ? "#2a3340" : "#1a1d21",
-    color: active ? "#7dd3fc" : "#c5ccd4",
+    padding: "5px 10px",
+    borderRadius: 0,
+    border: "1px solid #666",
+    background: active ? "#444" : "#333",
+    color: "#eee",
     fontSize: 12,
-    fontWeight: 500,
+    fontWeight: 700,
     cursor: "pointer",
+    fontFamily: "Arial, Helvetica, sans-serif",
   };
 }
 
-export default function CodeRoom({ problem, onEnd, onLeave }) {
+/** @param {{ problem: object, onEnd: Function, onLeave: Function, interviewMode?: boolean }} props */
+export default function CodeRoom({ problem, onEnd, onLeave, interviewMode = false }) {
   const [notes, setNotes] = useState("");
-  const [code, setCode] = useState(problem.starterCode || "");
   const [panel, setPanel] = useState("code");
   const [showPip, setShowPip] = useState(true);
-  const [briefOpen, setBriefOpen] = useState(false);
+  const [briefOpen, setBriefOpen] = useState(true);
   const [testStats, setTestStats] = useState({ total: 0, passed: 0 });
   const endedRef = useRef(false);
   const codeRef = useRef(problem.starterCode || "");
 
-  const media = useInterviewMedia({ maxSeconds: 3600 });
+  const media = useInterviewMedia({ maxSeconds: 3600, autoStart: interviewMode });
   const {
     elapsedSec,
     rmm,
@@ -58,10 +59,7 @@ export default function CodeRoom({ problem, onEnd, onLeave }) {
     LLD_FRAMEWORK_STEPS.find((s) => elapsedMin < s.cumulative) || LLD_FRAMEWORK_STEPS[LLD_FRAMEWORK_STEPS.length - 1];
 
   const onCodeChange = useCallback(({ code: next }) => {
-    if (next) {
-      codeRef.current = next;
-      setCode(next);
-    }
+    if (next) codeRef.current = next;
   }, []);
 
   const onTestComplete = useCallback((stats) => {
@@ -74,67 +72,71 @@ export default function CodeRoom({ problem, onEnd, onLeave }) {
     stopCamera();
     stopSpeech();
     onEnd({
-      transcript,
+      transcript: interviewMode ? transcript : "",
       notes,
       code: codeRef.current,
       elapsedSec,
       testTotal: testStats.total,
       testPassed: testStats.passed,
+      interviewMode,
       ...extra,
     });
   }
 
   function handleGazeFail({ warnings }) {
+    if (!interviewMode) return;
     finish({ integrityFail: true, gazeWarnings: warnings, integrityPenalty: 100 });
   }
 
   useEffect(() => {
-    if (timeUp && !endedRef.current) {
-      finish({ timeUp: true });
-    }
+    if (timeUp && !endedRef.current) finish({ timeUp: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeUp]);
 
   return (
-    <div className="code-room">
+    <div className={`code-room ${interviewMode ? "interview" : "practice"}`}>
       <header className="code-room-header">
         <div className="code-room-title">
           <div className="code-room-title-main">{problem.title}</div>
           <div className="code-room-title-sub">
-            LLD · {currentPhase.num} · {currentPhase.title}
-            {camLabel ? ` · ${camLabel}` : ""}
+            LLD · {interviewMode ? "Interview" : "Practice"} · {currentPhase.title}
+            {interviewMode && camLabel ? ` · ${camLabel}` : ""}
           </div>
         </div>
         <div className={`code-room-timer ${remainingSec < 600 ? "urgent" : ""}`}>
           <span className="code-room-timer-label">left</span>
           {rmm}:{rss}
         </div>
-        <div className={`code-room-pill ${listening ? "live" : "off"}`}>
-          <Mic size={14} /> {listening ? "Mic live" : "Mic off"}
-        </div>
-        <div className={`code-room-pill ${stream ? "live" : "off"}`}>Cam {stream ? "live" : "off"}</div>
-        {camDevices.length > 0 && (
-          <select
-            value={camDeviceId}
-            onChange={(e) => openCamera(e.target.value)}
-            className="code-room-select"
-            title="Camera device"
-          >
-            {camDevices.map((d, i) => (
-              <option key={d.deviceId} value={d.deviceId}>
-                {d.label || `Camera ${i + 1}`}
-              </option>
-            ))}
-          </select>
+        {interviewMode && (
+          <>
+            <div className={`code-room-pill ${listening ? "live" : "off"}`}>
+              <Mic size={14} /> {listening ? "Mic live" : "Mic off"}
+            </div>
+            <div className={`code-room-pill ${stream ? "live" : "off"}`}>Cam {stream ? "live" : "off"}</div>
+            {camDevices.length > 0 && (
+              <select
+                value={camDeviceId}
+                onChange={(e) => openCamera(e.target.value)}
+                className="code-room-select"
+                title="Camera device"
+              >
+                {camDevices.map((d, i) => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {d.label || `Camera ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+            )}
+            {!showPip && (
+              <button type="button" onClick={() => setShowPip(true)} style={roomBtn(false)}>
+                Show cam
+              </button>
+            )}
+          </>
         )}
         <button type="button" onClick={() => setPanel(panel === "notes" ? "code" : "notes")} style={roomBtn(panel === "notes")}>
           <FileText size={16} /> Notes
         </button>
-        {!showPip && (
-          <button type="button" onClick={() => setShowPip(true)} style={roomBtn(false)}>
-            Show cam
-          </button>
-        )}
         <button type="button" onClick={() => finish()} className="code-room-end">
           <Square size={14} /> End & score
         </button>
@@ -143,7 +145,7 @@ export default function CodeRoom({ problem, onEnd, onLeave }) {
         </button>
       </header>
 
-      {(camError || micError) && (
+      {interviewMode && (camError || micError) && (
         <div className="code-room-alert">
           <span>{camError || micError}</span>
           {camError && (
@@ -182,9 +184,12 @@ export default function CodeRoom({ problem, onEnd, onLeave }) {
           </div>
         )}
 
-        <div className="code-room-main" style={{ display: panel === "code" ? "block" : "none" }}>
+        <div
+          className="code-room-main"
+          style={{ display: panel === "code" ? "flex" : "none", flex: 1, minHeight: 0, height: "100%" }}
+        >
           <div className="code-room-test-hud">
-            Tests {testStats.passed}/{testStats.total || "…"} passed · README + solution.ts in file tree
+            Tests {testStats.passed}/{testStats.total || "…"}
           </div>
           <CodeEditorBoard problem={problem} onCodeChange={onCodeChange} onTestComplete={onTestComplete} />
         </div>
@@ -197,17 +202,19 @@ export default function CodeRoom({ problem, onEnd, onLeave }) {
           />
         )}
 
-        <div className="code-room-transcript">
-          <div className="code-room-transcript-label">LIVE TRANSCRIPT {listening ? "· listening" : ""}</div>
-          {transcript || interim ? (
-            <>
-              {transcript}
-              {interim ? <span className="dim"> {interim}</span> : null}
-            </>
-          ) : (
-            <span className="dim">Speak out loud — explain classes and methods as you code.</span>
-          )}
-        </div>
+        {interviewMode && (
+          <div className="code-room-transcript">
+            <div className="code-room-transcript-label">LIVE TRANSCRIPT {listening ? "· listening" : ""}</div>
+            {transcript || interim ? (
+              <>
+                {transcript}
+                {interim ? <span className="dim"> {interim}</span> : null}
+              </>
+            ) : (
+              <span className="dim">Speak out loud — explain classes and methods as you code.</span>
+            )}
+          </div>
+        )}
       </div>
 
       <footer className="code-room-footer">
@@ -225,7 +232,7 @@ export default function CodeRoom({ problem, onEnd, onLeave }) {
         </div>
       </footer>
 
-      {showPip && (
+      {interviewMode && showPip && (
         <PipCamera
           stream={stream}
           camError={camError}
@@ -233,7 +240,7 @@ export default function CodeRoom({ problem, onEnd, onLeave }) {
           onRetry={() => openCamera(camDeviceId || null)}
         />
       )}
-      {stream && <GazeGuard stream={stream} enabled={!endedRef.current} onFail={handleGazeFail} />}
+      {interviewMode && stream && <GazeGuard stream={stream} enabled={!endedRef.current} onFail={handleGazeFail} />}
     </div>
   );
 }
