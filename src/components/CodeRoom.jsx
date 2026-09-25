@@ -63,7 +63,10 @@ export default function CodeRoom({ problem, onEnd, onLeave, interviewMode = fals
   }, []);
 
   const onTestComplete = useCallback((stats) => {
-    setTestStats(stats);
+    setTestStats((prev) => {
+      if (prev.total === stats.total && prev.passed === stats.passed) return prev;
+      return { total: stats.total || 0, passed: stats.passed || 0 };
+    });
   }, []);
 
   function finish(extra = {}) {

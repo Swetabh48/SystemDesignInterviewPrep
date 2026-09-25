@@ -245,21 +245,22 @@ function ProblemFilters({ query, setQuery, tag, setTag, category, setCategory, c
 function ProblemListView({ problemsState, onOpen, filtered }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {filtered.map((p, i) => {
+      {filtered.map((p) => {
         const st = problemsState[p.id];
         const meta = STATUS[st.status];
+        const solved = st.status === "confident" || (st.lastScore != null && st.lastScore >= 70);
         return (
           <div
             key={p.id}
-            className="depth-row"
+            className={`depth-row ${solved ? "solved" : ""}`}
             onClick={() => onOpen(p.id)}
           >
             <div className="depth-fill" style={{ width: meta.fill + "%" }} />
             <div className="problem-row-inner">
               <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>{p.num}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: solved ? "var(--bid)" : "var(--text-dim)" }}>{p.num}</span>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500 }}>{p.title}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: solved ? "var(--bid)" : undefined }}>{p.title}</div>
                   <div style={{ fontSize: 11, color: "var(--text-dim)", display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <span>{p.tag}</span>
                     <span>·</span>
@@ -267,14 +268,20 @@ function ProblemListView({ problemsState, onOpen, filtered }) {
                     {st.lastScore != null && (
                       <>
                         <span>·</span>
-                        <span style={{ color: "var(--amber)" }}>score {st.lastScore}</span>
+                        <span style={{ color: solved ? "var(--bid)" : "var(--amber)" }}>score {st.lastScore}</span>
+                      </>
+                    )}
+                    {solved && (
+                      <>
+                        <span>·</span>
+                        <span style={{ color: "var(--bid)", fontWeight: 700 }}>solved</span>
                       </>
                     )}
                   </div>
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: meta.color }}>{meta.label}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: solved ? "var(--bid)" : meta.color }}>{meta.label}</span>
                 <ChevronRight size={14} color="var(--text-dim)" />
               </div>
             </div>
@@ -505,23 +512,29 @@ function ProgressView({ data, onOpenHld, onOpenLld }) {
       const st = stateMap[p.id];
       const meta = STATUS[st.status];
       const checkedCount = st.rubric.filter(Boolean).length;
+      const solved = st.status === "confident" || (st.lastScore != null && st.lastScore >= 70);
       return (
-        <div key={p.id} onClick={() => onOpen(p.id)} className="depth-row" style={{ cursor: "pointer", marginBottom: 8 }}>
+        <div
+          key={p.id}
+          onClick={() => onOpen(p.id)}
+          className={`depth-row ${solved ? "solved" : ""}`}
+          style={{ cursor: "pointer", marginBottom: 8 }}
+        >
           <div className="depth-fill" style={{ width: meta.fill + "%" }} />
           <div className="problem-row-inner">
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: accent }}>{p.num}</span>
-              <span style={{ fontSize: 13.5 }}>{p.title}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: solved ? "var(--bid)" : accent }}>{p.num}</span>
+              <span style={{ fontSize: 13.5, color: solved ? "var(--bid)" : undefined, fontWeight: solved ? 600 : 400 }}>{p.title}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {st.lastScore != null && (
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--amber)" }}>{st.lastScore}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: solved ? "var(--bid)" : "var(--amber)" }}>{st.lastScore}</span>
               )}
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
                 {checkedCount}/{p.rubric.length}
               </span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: meta.color, minWidth: 80, textAlign: "right" }}>
-                {meta.label}
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: solved ? "var(--bid)" : meta.color, minWidth: 80, textAlign: "right" }}>
+                {solved ? "Solved" : meta.label}
               </span>
             </div>
           </div>
@@ -748,6 +761,7 @@ export default function SystemDesignPrep() {
         <LldMockStudio
           fullPage
           problems={LLD_PROBLEMS}
+          problemsState={data.lldProblems}
           mockProblemId={lldMockProblemId}
           onPickProblem={setLldMockProblemId}
           onExit={() => {

@@ -1,22 +1,17 @@
-import { getTestCode } from "./lldTestCases.js";
+import {
+  buildFullTestFile,
+  getHiddenCount,
+  getVisibleCases,
+} from "./lldTestCases.js";
+import { buildStarter, getLanguage } from "./lldLanguages.js";
 
 export function lldSolutionStarter(problem) {
-  const hints = problem.starterHints || [];
-  const hintLines = hints.length ? hints.map((h) => ` * - ${h}`).join("\n") : " * - Export domain classes from this file";
-  const exportsHint = problem.exportHint || "export class YourService {}";
-
-  return `/**
- * ${problem.title}
- * ${problem.prompt}
- *
- * Implement here:${hintLines ? `\n${hintLines}` : ""}
- */
-
-${exportsHint}
-`;
+  return buildStarter(problem, "typescript");
 }
 
 export function buildReadme(problem) {
+  const visible = getVisibleCases(problem);
+  const hidden = getHiddenCount(problem);
   const lines = [
     `# ${problem.title}`,
     "",
@@ -29,28 +24,36 @@ export function buildReadme(problem) {
     ...(problem.focus || []).map((r) => `- ${r}`),
     "",
     "## Tests",
-    "Hidden Jest tests run in the **Tests** panel → implement \`solution.ts\` until green.",
+    `You can see **2 sample tests**. **${hidden} more are hidden** and still run in TypeScript/JavaScript.`,
+    "",
+    ...visible.map((c, i) => `${i + 1}. ${c.name}`),
     "",
     `_Source: ${problem.source || "Interview prep catalog"}_`,
   ];
   return lines.join("\n");
 }
 
-/** CodeSandbox-style file tree: README + solution + hidden tests. */
-export function buildSandpackFiles(problem) {
-  const solution = problem.starterCode || lldSolutionStarter(problem);
-  const tests = getTestCode(problem);
+/**
+ * @param {object} problem
+ * @param {string} [languageId]
+ */
+export function buildSandpackFiles(problem, languageId = "typescript") {
+  const lang = getLanguage(languageId);
+  const ext = lang.ext === "js" ? "js" : "ts";
+  const solutionPath = `/solution.${ext}`;
+  const solution = buildStarter(problem, languageId);
+  const tests = buildFullTestFile(problem, ext);
 
   return {
     "/README.md": {
       code: buildReadme(problem),
       readOnly: true,
     },
-    "/solution.ts": {
+    [solutionPath]: {
       code: solution,
       active: true,
     },
-    "/solution.test.ts": {
+    [`/solution.test.${ext}`]: {
       code: tests,
       hidden: true,
     },
@@ -58,14 +61,17 @@ export function buildSandpackFiles(problem) {
   };
 }
 
-export function getSandpackOptions(problem) {
-  const visible = ["/README.md", "/solution.ts"];
+export function getSandpackOptions(problem, languageId = "typescript") {
+  const lang = getLanguage(languageId);
+  const ext = lang.ext === "js" ? "js" : "ts";
+  const solutionPath = `/solution.${ext}`;
+  const visible = ["/README.md", solutionPath];
   if (problem.extraVisible) visible.push(...problem.extraVisible);
   return {
-    activeFile: "/solution.ts",
+    activeFile: solutionPath,
     visibleFiles: visible,
     recompileMode: "delayed",
-    recompileDelay: 700,
+    recompileDelay: 900,
     autorun: true,
     autoReload: true,
   };

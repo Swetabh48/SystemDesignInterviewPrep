@@ -28,7 +28,7 @@ function ScoreBar({ label, value }) {
   );
 }
 
-export default function LldMockStudio({ problems, mockProblemId, onPickProblem, onSaveResult, onExit, fullPage }) {
+export default function LldMockStudio({ problems, problemsState = {}, mockProblemId, onPickProblem, onSaveResult, onExit, fullPage }) {
   const [live, setLive] = useState(false);
   const [interviewMode, setInterviewMode] = useState(false);
   const [ended, setEnded] = useState(false);
@@ -80,9 +80,11 @@ export default function LldMockStudio({ problems, mockProblemId, onPickProblem, 
 
   function finishSave() {
     const checkedCount = rubricChecks.filter(Boolean).length;
+    const testsAllPass =
+      (sessionMeta?.testTotal || 0) > 0 && sessionMeta.testPassed === sessionMeta.testTotal;
     let status = "attempted";
     if (analysis) {
-      if (analysis.overall >= 85) status = "confident";
+      if (analysis.overall >= 85 || testsAllPass) status = "confident";
       else if (analysis.overall >= 55) status = "reviewed";
     } else if (checkedCount === rubricChecks.length && checkedCount > 0) status = "confident";
     else if (checkedCount > 0) status = "reviewed";
@@ -123,13 +125,22 @@ export default function LldMockStudio({ problems, mockProblemId, onPickProblem, 
           sub="Practice with the sandbox only, or use Interview mode for camera, mic, and gaze checks."
         />
         <div className="problem-pick-list">
-          {problems.map((p) => (
-            <button key={p.id} type="button" className="problem-pick-row" onClick={() => onPickProblem(p.id)}>
-              <span className="problem-num">{p.num}</span>
-              <span className="problem-name">{p.title}</span>
-              <span className="problem-tag">{p.tag}</span>
-            </button>
-          ))}
+          {problems.map((p) => {
+            const st = problemsState[p.id];
+            const solved = st && (st.status === "confident" || (st.lastScore != null && st.lastScore >= 70));
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className={`problem-pick-row ${solved ? "solved" : ""}`}
+                onClick={() => onPickProblem(p.id)}
+              >
+                <span className="problem-num">{p.num}</span>
+                <span className="problem-name">{p.title}</span>
+                <span className="problem-tag">{solved ? "Solved" : p.tag}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     );
